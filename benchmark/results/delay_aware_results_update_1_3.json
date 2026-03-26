@@ -1,0 +1,207 @@
+{
+    "CLIP": {
+        "latency": {
+            "mean_ms": 15.282226329048475,
+            "std_ms": 0.6233534555566157,
+            "min_ms": 14.843734912574291,
+            "max_ms": 20.705772563815117,
+            "p50_ms": 15.140764880925417,
+            "p95_ms": 15.930729592218995,
+            "p99_ms": 18.037944575771668
+        },
+        "memory_MB": 341.2373046875,
+        "power_energy": {
+            "power_W": 76.86976479076479,
+            "energy_J": 1.1875469738853432,
+            "energy_mJ": 1187.5469738853433
+        },
+        "safety_margin": {
+            "p99_ms": 18.037944575771668,
+            "os_jitter_ms": 1.0,
+            "delay_buffer_ms": 2.0,
+            "worst_case_latency_ms": 21.037944575771668,
+            "inference_budget_ms": 100.0,
+            "satisfies_rt_constraint": true,
+            "satisfies_stability_bound": true,
+            "stability_margin_ms": 16.76
+        },
+        "deployability": {
+            "battery_capacity_J": 3996.0,
+            "battery_mAh": 300,
+            "battery_V": 3.7,
+            "energy_per_inference_J": 1.1875469738853432,
+            "inference_rate_Hz": 10,
+            "inferences_per_charge": 3364.9195256050652,
+            "runtime_at_target_hz_hr": 0.09346998682236293,
+            "runtime_at_target_hz_min": 5.608199209341776
+        }
+    },
+    "LoRA": {
+        "unmerged": {
+            "latency": {
+                "mean_ms": 21.91062199262281,
+                "std_ms": 0.8383756282881072,
+                "min_ms": 21.297041326761246,
+                "max_ms": 33.04371330887079,
+                "p50_ms": 21.713022142648697,
+                "p95_ms": 22.922040382400155,
+                "p99_ms": 23.966537518426776
+            },
+            "memory_MB": 343.1123046875,
+            "power_energy": {
+                "power_W": 74.95923529411765,
+                "energy_J": 1.648022054103166,
+                "energy_mJ": 1648.022054103166
+            },
+            "safety_margin": {
+                "p99_ms": 23.966537518426776,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 26.966537518426776,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": true,
+                "satisfies_stability_bound": true,
+                "stability_margin_ms": 10.83
+            },
+            "deployability": {
+                "battery_capacity_J": 3996.0,
+                "battery_mAh": 300,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 1.648022054103166,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 2424.724833051203,
+                "runtime_at_target_hz_hr": 0.06735346758475565,
+                "runtime_at_target_hz_min": 4.041208055085339
+            }
+        },
+        "merged": {
+            "latency": {
+                "mean_ms": 13.699386812125644,
+                "std_ms": 0.3908111939283428,
+                "min_ms": 13.314669020473957,
+                "max_ms": 16.889306716620922,
+                "p50_ms": 13.59236752614379,
+                "p95_ms": 14.316715812310576,
+                "p99_ms": 14.501843787729724
+            },
+            "memory_MB": 341.2373046875,
+            "power_energy": {
+                "power_W": 78.02637386018237,
+                "energy_J": 1.0849225243574565,
+                "energy_mJ": 1084.9225243574565
+            },
+            "safety_margin": {
+                "p99_ms": 14.501843787729724,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 17.501843787729726,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": true,
+                "satisfies_stability_bound": true,
+                "stability_margin_ms": 20.3
+            },
+            "deployability": {
+                "battery_capacity_J": 3996.0,
+                "battery_mAh": 300,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 1.0849225243574565,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 3683.2123126640995,
+                "runtime_at_target_hz_hr": 0.10231145312955832,
+                "runtime_at_target_hz_min": 6.138687187773499
+            }
+        }
+    },
+    "Frozen": {
+        "vision": {
+            "latency": {
+                "mean_ms": 9.971820047746101,
+                "std_ms": 0.2725022729074201,
+                "min_ms": 9.744994342327118,
+                "max_ms": 13.214427046477795,
+                "p50_ms": 9.936797432601452,
+                "p95_ms": 10.25765580125153,
+                "p99_ms": 10.528147192671895
+            },
+            "memory_MB": 94.16650390625,
+            "power_energy": {
+                "power_W": 82.46038461538463,
+                "energy_J": 0.7473581111954527,
+                "energy_mJ": 747.3581111954527
+            },
+            "safety_margin": {
+                "p99_ms": 10.528147192671895,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 13.528147192671895,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": true,
+                "satisfies_stability_bound": true,
+                "stability_margin_ms": 24.27
+            },
+            "deployability": {
+                "battery_capacity_J": 3996.0,
+                "battery_mAh": 300,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 0.7473581111954527,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 5346.834322314523,
+                "runtime_at_target_hz_hr": 0.14852317561984787,
+                "runtime_at_target_hz_min": 8.911390537190872
+            }
+        },
+        "e2e": {
+            "latency": {
+                "mean_ms": 408.01262587308884,
+                "std_ms": 3.074020535928585,
+                "min_ms": 403.64846028387547,
+                "max_ms": 420.14405876398087,
+                "p50_ms": 407.98458037897944,
+                "p95_ms": 412.31711828149855,
+                "p99_ms": 417.15066966600716
+            },
+            "memory_MB": 1609.29638671875,
+            "power_energy": {
+                "power_W": 81.88384886240522,
+                "energy_J": 33.877171597444615,
+                "energy_mJ": 33877.17159744461
+            },
+            "safety_margin": {
+                "p99_ms": 417.15066966600716,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 420.15066966600716,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": false,
+                "satisfies_stability_bound": false,
+                "stability_margin_ms": -382.35
+            },
+            "deployability": {
+                "battery_capacity_J": 3996.0,
+                "battery_mAh": 300,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 33.877171597444615,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 117.95553794996928,
+                "runtime_at_target_hz_hr": 0.00327654272083248,
+                "runtime_at_target_hz_min": 0.1965925632499488
+            }
+        }
+    },
+    "_meta": {
+        "determinism_warnings": [
+            "Already found a `peft_config` attribute in the model. This will lead to having multiple adapters in the model. Make sure to know what you are doing!",
+            "You are using `torch.load` with `weights_only=False` (the current default value), which uses the default pickle module implicitly. It is possible to construct malicious pickle data which will execute arbitrary code during unpickling (See https://github.com/pytorch/pytorch/blob/main/SECURITY.md#untrusted-models for more details). In a future release, the default value for `weights_only` will be flipped to `True`. This limits the functions that could be executed during unpickling. Arbitrary objects will no longer be allowed to be loaded via this mode unless they are explicitly allowlisted by the user via `torch.serialization.add_safe_globals`. We recommend you start setting `weights_only=True` for any use case where you don't have full control of the loaded file. Please open an issue on GitHub for any issues related to this experimental feature."
+        ],
+        "seed": 42,
+        "batch_size": 1,
+        "latency_runs": 300,
+        "latency_warmup_runs": 30,
+        "power_sampling_interval_ms": 1.0,
+        "os_jitter_ms": 1.0,
+        "delay_buffer_ms": 2.0,
+        "wearable_battery_mAh": 300,
+        "wearable_battery_V": 3.7,
+        "target_inference_rate_Hz": 10
+    }
+}

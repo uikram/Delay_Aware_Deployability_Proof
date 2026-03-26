@@ -1,0 +1,84 @@
+{
+    "tau_max_ms": 37.77240498360276,
+    "routh_first_column": {
+        "s4": 0.022663442990161656,
+        "s3": 1.709623899669961,
+        "s2": 1.0635424061698484,
+        "s1": 4.959904973869516e-11,
+        "s0": 1000.0
+    },
+    "sil_simulation": {
+        "10ms": {
+            "IAE": 0.3572,
+            "OS_pct": 6.72,
+            "ISE": 0.0715,
+            "Ts_s": 2.609,
+            "stable": true
+        },
+        "15ms": {
+            "IAE": 0.3596,
+            "OS_pct": 15.27,
+            "ISE": 0.0739,
+            "Ts_s": 2.599,
+            "stable": true
+        },
+        "20ms": {
+            "IAE": 0.3646,
+            "OS_pct": 24.78,
+            "ISE": 0.081,
+            "Ts_s": 2.59,
+            "stable": true
+        },
+        "30ms": {
+            "IAE": 0.4979,
+            "OS_pct": 45.16,
+            "ISE": 0.1817,
+            "Ts_s": 1.63,
+            "stable": true
+        },
+        "40ms": {
+            "IAE": 17.1235,
+            "OS_pct": 3055.89,
+            "ISE": 238.7566,
+            "Ts_s": "N/A",
+            "stable": false
+        },
+        "50ms": {
+            "IAE": 124.7931,
+            "OS_pct": 13988.18,
+            "ISE": 11700.8758,
+            "Ts_s": "N/A",
+            "stable": false
+        }
+    },
+    "worst_case_latency": {
+        "CLIP Baseline": {
+            "p99_ms": 16.12,
+            "wcl_ms": 19.12,
+            "ratio_percent": 50.6,
+            "margin_ms": 18.65,
+            "safe": true
+        },
+        "LoRA-CLIP (merged)": {
+            "p99_ms": 15.49,
+            "wcl_ms": 18.49,
+            "ratio_percent": 49.0,
+            "margin_ms": 19.28,
+            "safe": true
+        },
+        "LoRA-CLIP (unmerged)": {
+            "p99_ms": 25.57,
+            "wcl_ms": 28.57,
+            "ratio_percent": 75.6,
+            "margin_ms": 9.2,
+            "safe": true
+        },
+        "Frozen Prefix-LM (E2E)": {
+            "p99_ms": 418.21,
+            "wcl_ms": 421.21,
+            "ratio_percent": 1115.1,
+            "margin_ms": -383.44,
+            "safe": false
+        }
+    }
+}

@@ -2,4 +2,6 @@
 *pt
 *pyc
 *.safetensors
-
+*jpg
+*pdf
+*jpeg

@@ -1,0 +1,32 @@
+# CLIP Baseline Configuration (Hugging Face)
+
+model:
+  # Changed from "name" to "model_name" to match Python config class
+  model_name: "openai/clip-vit-base-patch32" 
+
+system:
+  device: "cuda"
+  num_workers: 4
+  seed: 42
+
+data:
+  cache_dir: "cache"
+  results_dir: "results_attained"
+  plots_dir: "plots"
+
+evaluation:
+  batch_size: 64
+  logistic_regression_c: 0.316
+  k_shots: [1, 2, 4, 8, 16]
+
+datasets:
+  - CIFAR100
+  - Food101
+  - Flowers102
+  - DTD
+  - EuroSAT
+
+eval_modes:
+  zero_shot: true
+  linear_probe: true
+  few_shot: true

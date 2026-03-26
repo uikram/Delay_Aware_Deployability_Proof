@@ -1,0 +1,49 @@
+# CLIP + LoRA Configuration
+
+model:
+  model_id: "openai/clip-vit-base-patch32"
+  lora_r: 16
+  lora_alpha: 32
+  lora_dropout: 0.05
+  target_modules: ["q_proj", "v_proj"]
+
+system:
+  device: "cuda"
+  num_workers: 4
+  seed: 42
+
+data:
+  # Root directory
+  data_root: "../conceptual_captions_data"
+  
+  # Training images folder
+  image_dir: "../conceptual_captions_data"
+  
+  # Training annotations
+  annotation_file: "../conceptual_captions_data/train.jsonl"
+  
+  # Validation (optional)
+  validation_image_dir: "../conceptual_captions_data" 
+  validation_file: "../conceptual_captions_data/validation.jsonl"
+  
+  # Cache for benchmark datasets
+  cache_dir: "cache"
+  results_dir: "results_attained"
+  plots_dir: "plots"
+
+training:
+  batch_size: 64
+  num_epochs: 3
+  learning_rate: 5.0e-5
+  max_length: 77
+  output_dir: "clip_lora_checkpoints"
+  save_every_n_epochs: 1
+
+dataset:
+  name: "Conceptual Captions"
+  max_samples: null
+
+optimizer:
+  type: "AdamW"
+  weight_decay: 0.0
+  eps: 1.0e-8
