@@ -15,7 +15,6 @@ import pynvml
 # ============ 1. DETERMINISM SETUP ============
 os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
-# Capture determinism warnings for paper reporting instead of silently ignoring
 _determinism_warnings = []
 def _warn_handler(message, category, filename, lineno, file=None, line=None):
     _determinism_warnings.append(str(message))
@@ -29,9 +28,6 @@ def set_seed(seed=42):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     try:
-        # warn_only=False: raise error on non-deterministic ops so we KNOW about them
-        # If your model has unavoidable non-deterministic ops, switch back to warn_only=True
-        # but log the warnings — do not suppress silently.
         torch.use_deterministic_algorithms(True, warn_only=False)
     except AttributeError:
         pass
@@ -50,41 +46,20 @@ CHECKPOINT_PATHS = {
     "LORA_ADAPTER": "/sda/usama/production_code/clip_lora_checkpoints/epoch_3",
 }
 
-# Wearable battery parameters for deployability estimation (Section 4)
-WEARABLE_BATTERY_MAH   = 300      # mAh — typical small wearable (e.g. smart glasses module)
-WEARABLE_BATTERY_V     = 3.7      # Volts (LiPo nominal)
-WEARABLE_BATTERY_J     = WEARABLE_BATTERY_MAH * 3.6 * WEARABLE_BATTERY_V  # J = mAh*3.6*V
-INFERENCE_RATE_HZ      = 10       # target inference frequency for real-time wearable use
+WEARABLE_BATTERY_MAH   = 3000
+WEARABLE_BATTERY_V     = 3.7
+WEARABLE_BATTERY_J     = WEARABLE_BATTERY_MAH * 3.6 * WEARABLE_BATTERY_V
+INFERENCE_RATE_HZ      = 10
+OS_JITTER_MS           = 1.0
+DELAY_BUFFER_MS        = 2.0
+LATENCY_WARMUP_RUNS    = 300    # fast models only; E2E overrides with warmup=5
+LATENCY_RUNS_FAST      = 1000   # CLIP, LoRA-Merged, LoRA-Unmerged, Frozen-Vision
+LATENCY_RUNS_E2E       = 150    # ~60 min measurement; stable p99 bucket
 
-# Stability / safety-margin constants (Section 3)
-OS_JITTER_MS           = 1.0      # conservative OS scheduling jitter (ms) for Linux RT systems
-DELAY_BUFFER_MS        = 2.0      # additional conservative deployment buffer (ms)
-
-# ---- GPU index: derive from device string so we never hardcode the wrong GPU ----
 def _gpu_index(device: str) -> int:
-    """
-    Resolve the PHYSICAL GPU index for NVML from a PyTorch device string.
-
-    Critical: NVML bypasses CUDA_VISIBLE_DEVICES entirely — it always uses
-    physical hardware indices. PyTorch, however, remaps logical indices based
-    on CUDA_VISIBLE_DEVICES. If we naively pass the PyTorch logical index to
-    NVML, we measure the wrong GPU.
-
-    Example: CUDA_VISIBLE_DEVICES=2, device='cuda' (logical index 0)
-        - PyTorch thinks this is cuda:0 → runs on physical GPU 2
-        - NVML index 0 → physical GPU 0 (idle!)
-        - Correct NVML index → 2
-
-    We resolve this by reading CUDA_VISIBLE_DEVICES and mapping
-    logical → physical ourselves.
-    """
     if device == 'cpu':
         return 0
-
-    # Parse PyTorch logical index: 'cuda' → 0, 'cuda:1' → 1
     logical_idx = int(device.split(":")[1]) if ":" in device else 0
-
-    # Map logical → physical via CUDA_VISIBLE_DEVICES
     cvd = os.environ.get("CUDA_VISIBLE_DEVICES", "").strip()
     if cvd:
         physical_devices = [int(x.strip()) for x in cvd.split(",") if x.strip().isdigit()]
@@ -93,13 +68,21 @@ def _gpu_index(device: str) -> int:
             print(f"  [NVML] CUDA_VISIBLE_DEVICES='{cvd}' → "
                   f"logical cuda:{logical_idx} = physical GPU {physical}")
             return physical
-
     return logical_idx
 
 def force_cleanup():
     gc.collect()
     torch.cuda.empty_cache()
     torch.cuda.synchronize()
+
+def gpu_cooldown(seconds=60, device='cuda'):
+    """
+    Passive thermal dissipation cooldown.
+    """
+    force_cleanup()
+    print(f"  [cooldown] Sleeping {seconds}s for thermal dissipation...", flush=True)
+    time.sleep(seconds)
+    force_cleanup()
 
 def strict_fp16_setup(model, device):
     target = model.model if hasattr(model, 'model') else model
@@ -124,142 +107,121 @@ def measure_peak_memory(func, device):
     return torch.cuda.max_memory_allocated() / (1024 ** 2)
 
 # ============================================================
-#  LATENCY  (returns per-run timings list AND summary stats)
+#  LATENCY
 # ============================================================
-def measure_latency_stats(func, runs=300, warmup=30, device='cuda', label=''):
-    """
-    300 runs gives a statistically stable p99 for fast functions (CLIP ~13ms).
-    For slow functions (generation ~500ms+), caller should pass runs=50.
-    Returns both the stats dict and the raw timings for downstream use.
-    """
+def measure_latency_stats(func, runs=LATENCY_RUNS_FAST, warmup=LATENCY_WARMUP_RUNS,
+                          device='cuda', label=''):
     for i in range(warmup):
-        func()
+        with torch.no_grad():
+            func()
         if device != 'cpu':
             torch.cuda.synchronize()
-        if label and (i + 1) % 5 == 0:
+        if label and (i + 1) % 10 == 0:
             print(f"     warmup {i+1}/{warmup}", flush=True)
 
+    gc.disable()
     timings = []
-    for i in range(runs):
-        start = time.perf_counter()
-        func()
-        if device != 'cpu':
-            torch.cuda.synchronize()
-        end = time.perf_counter()
-        timings.append((end - start) * 1000)  # ms
-        # Print progress every 10 runs for slow functions (helps confirm not stuck)
-        if label and (i + 1) % 10 == 0:
-            print(f"     [{label}] run {i+1}/{runs}  last={timings[-1]:.1f}ms", flush=True)
+    try:
+        for i in range(runs):
+            start = time.perf_counter()
+            with torch.no_grad():
+                func()
+            if device != 'cpu':
+                torch.cuda.synchronize()
+            end = time.perf_counter()
+            timings.append((end - start) * 1000)
+            if label and (i + 1) % 50 == 0:
+                print(f"     [{label}] run {i+1}/{runs}  last={timings[-1]:.1f}ms", flush=True)
+    finally:
+        gc.enable()
+        gc.collect()
 
     timings_arr = np.array(timings)
     stats = {
-        "mean_ms":  float(np.mean(timings_arr)),
-        "std_ms":   float(np.std(timings_arr)),
-        "min_ms":   float(np.min(timings_arr)),
-        "max_ms":   float(np.max(timings_arr)),
-        "p50_ms":   float(np.percentile(timings_arr, 50)),
-        "p95_ms":   float(np.percentile(timings_arr, 95)),
-        "p99_ms":   float(np.percentile(timings_arr, 99)),
+        "mean_ms": float(np.mean(timings_arr)),
+        "std_ms":  float(np.std(timings_arr)),
+        "min_ms":  float(np.min(timings_arr)),
+        "max_ms":  float(np.max(timings_arr)),
+        "p50_ms":  float(np.percentile(timings_arr, 50)),
+        "p95_ms":  float(np.percentile(timings_arr, 95)),
+        "p99_ms":  float(np.percentile(timings_arr, 99)),
     }
     return stats, timings
 
 # ============================================================
-#  POWER + ENERGY  (FIX: concurrent sampling thread)
+#  POWER + ENERGY (Block-Level Integration)
 # ============================================================
 def measure_power_and_energy(func, gpu_index: int, runs=100, warmup=20, device='cuda'):
-    """
-    Correct power measurement for IEEE publication:
-
-    Problem with original approach
-    --------------------------------
-    Reading power *after* func() returns captures the GPU in its post-kernel
-    idle/drain state, not the active compute state.  For short kernels this
-    produces a severe underestimate of actual power draw.
-
-    Fix: concurrent sampling thread
-    --------------------------------
-    A background thread polls nvml at ~1 kHz *while* the GPU is executing.
-    This gives true active-compute power samples.  We then compute:
-
-        energy_J = mean_active_power_W × mean_latency_s
-
-    Both mean_active_power_W and mean_latency_s come from the SAME set of
-    runs, so they are thermally coupled (no split-measurement bias).
-    """
     if device == 'cpu':
         return {"power_W": 0.0, "energy_J": 0.0, "energy_mJ": 0.0}
 
     pynvml.nvmlInit()
     handle = pynvml.nvmlDeviceGetHandleByIndex(gpu_index)
 
-    # Warmup to reach active thermal/power state
+    # Warmup: reach steady GPU power state before measuring
     for _ in range(warmup):
-        func()
+        with torch.no_grad():
+            func()
     torch.cuda.synchronize()
 
-    # --- concurrent sampling ---
-    power_samples  = []
-    sampling_active = threading.Event()
-    sampling_done   = threading.Event()
+    # --- Block-level measurement ---
+    power_samples = []
+    temps = []  # Added for thermal tracking
+    stop_event = threading.Event()  
 
     def sampler():
-        while not sampling_done.is_set():
-            if sampling_active.is_set():
-                try:
-                    mw = pynvml.nvmlDeviceGetPowerUsage(handle)
-                    power_samples.append(mw / 1000.0)  # → Watts
-                except pynvml.NVMLError:
-                    pass
-            time.sleep(0.001)  # 1 ms poll interval
+        while not stop_event.is_set():
+            try:
+                mw = pynvml.nvmlDeviceGetPowerUsage(handle)
+                power_samples.append(mw / 1000.0)  # mW → W
+                temp = pynvml.nvmlDeviceGetTemperature(handle, pynvml.NVML_TEMPERATURE_GPU)
+                temps.append(temp)
+            except pynvml.NVMLError:
+                pass
+            time.sleep(0.001)  # 1ms poll
 
     t = threading.Thread(target=sampler, daemon=True)
+
+    torch.cuda.synchronize()
     t.start()
+    block_start = time.perf_counter()
 
-    run_latencies = []
     for _ in range(runs):
-        sampling_active.set()
-        t0 = time.perf_counter()
-        func()
-        torch.cuda.synchronize()
-        t1 = time.perf_counter()
-        sampling_active.clear()
-        run_latencies.append((t1 - t0) * 1000)
+        with torch.no_grad():
+            func()
 
-    sampling_done.set()
+    torch.cuda.synchronize()
+    block_end = time.perf_counter()
+
+    stop_event.set()  
     t.join(timeout=2.0)
     pynvml.nvmlShutdown()
 
-    avg_power_W   = float(np.mean(power_samples)) if power_samples else 0.0
-    mean_lat_s    = float(np.mean(run_latencies)) / 1000.0
-    energy_J      = avg_power_W * mean_lat_s
+    block_duration_s    = block_end - block_start
+    avg_power_W         = float(np.mean(power_samples)) if power_samples else 0.0
+    total_energy_J      = avg_power_W * block_duration_s
+    energy_per_inf_J    = total_energy_J / runs
+
+    print(f"     [power] {len(power_samples)} samples | avg {avg_power_W:.2f}W | "
+          f"{energy_per_inf_J*1000:.2f}mJ/inf | "
+          f"temp {min(temps)}–{max(temps)}°C", flush=True)
 
     return {
         "power_W":   avg_power_W,
-        "energy_J":  energy_J,
-        "energy_mJ": energy_J * 1000.0,
+        "energy_J":  energy_per_inf_J,
+        "energy_mJ": energy_per_inf_J * 1000.0,
+        "temp_min_C": int(min(temps)) if temps else None,
+        "temp_max_C": int(max(temps)) if temps else None,
     }
 
 # ============================================================
-#  WORST-CASE SAFETY MARGIN  (Section 3)
+#  WORST-CASE SAFETY MARGIN
 # ============================================================
 def compute_safety_margin(stats: dict) -> dict:
-    """
-    Worst-Case Latency Safety Margin Analysis.
-
-    Components
-    ----------
-    p99_ms       : empirical 99th-percentile latency
-    os_jitter_ms : conservative OS scheduling jitter for Linux systems
-    buffer_ms    : additional deployment safety buffer
-    wcl_ms       : Worst-Case Latency = p99 + jitter + buffer
-
-    Stability constraint: wcl_ms should be < 1000/target_Hz to guarantee
-    the model can sustain real-time inference at INFERENCE_RATE_HZ.
-    """
     p99    = stats["p99_ms"]
     wcl    = p99 + OS_JITTER_MS + DELAY_BUFFER_MS
-    budget = 1000.0 / INFERENCE_RATE_HZ  # ms per inference slot at target Hz
-    TAU_MAX_MS = 37.80  # stability bound from Padé/Routh analysis
+    budget = 1000.0 / INFERENCE_RATE_HZ
+    TAU_MAX_MS = 37.77
 
     return {
         "p99_ms":                    p99,
@@ -267,24 +229,15 @@ def compute_safety_margin(stats: dict) -> dict:
         "delay_buffer_ms":           DELAY_BUFFER_MS,
         "worst_case_latency_ms":     wcl,
         "inference_budget_ms":       budget,
-        "satisfies_rt_constraint":   bool(wcl <= budget),      # throughput check
-        "satisfies_stability_bound": bool(wcl < TAU_MAX_MS),   # stability check  ← ADD THIS
-        "stability_margin_ms":       round(TAU_MAX_MS - wcl, 2),  # ← ADD THIS
+        "satisfies_rt_constraint":   bool(wcl <= budget),
+        "satisfies_stability_bound": bool(wcl < TAU_MAX_MS),
+        "stability_margin_ms":       round(TAU_MAX_MS - wcl, 2),
     }
 
 # ============================================================
-#  WEARABLE DEPLOYABILITY  (Section 4)
+#  WEARABLE DEPLOYABILITY
 # ============================================================
 def compute_deployability(energy_J: float) -> dict:
-    """
-    Energy-Based Deployability Estimation for wearable deployment.
-
-    Battery capacity: WEARABLE_BATTERY_MAH mAh @ WEARABLE_BATTERY_V V
-    = WEARABLE_BATTERY_J Joules usable (assumes 100% DoD for worst-case).
-
-    Inferences per charge  = battery_J / energy_per_inference_J
-    Runtime at target Hz   = inferences_per_charge / Hz  (seconds → hours)
-    """
     if energy_J <= 0:
         return {"error": "energy <= 0, cannot estimate deployability"}
 
@@ -293,13 +246,13 @@ def compute_deployability(energy_J: float) -> dict:
     runtime_hr = runtime_s / 3600.0
 
     return {
-        "battery_capacity_J":      WEARABLE_BATTERY_J,
-        "battery_mAh":             WEARABLE_BATTERY_MAH,
-        "battery_V":               WEARABLE_BATTERY_V,
-        "energy_per_inference_J":  energy_J,
-        "inference_rate_Hz":       INFERENCE_RATE_HZ,
-        "inferences_per_charge":   inferences_per_charge,
-        "runtime_at_target_hz_hr": runtime_hr,
+        "battery_capacity_J":       WEARABLE_BATTERY_J,
+        "battery_mAh":              WEARABLE_BATTERY_MAH,
+        "battery_V":                WEARABLE_BATTERY_V,
+        "energy_per_inference_J":   energy_J,
+        "inference_rate_Hz":        INFERENCE_RATE_HZ,
+        "inferences_per_charge":    inferences_per_charge,
+        "runtime_at_target_hz_hr":  runtime_hr,
         "runtime_at_target_hz_min": runtime_hr * 60.0,
     }
 
@@ -313,15 +266,20 @@ def get_deterministic_input(batch_size, device):
 #  SINGLE BENCHMARK PASS
 # ============================================================
 def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_results.json'):
+    global _determinism_warnings # FIX: properly reference global to clear it
+    _determinism_warnings = []
+    set_seed(42)
+
     BATCH_SIZE = 1
     results    = {}
     gpu_idx    = _gpu_index(device)
 
+    gpu_cooldown(seconds=120, device=device) # FIX: using 'device', not 'args.device'
     print(f"Device: {device}  (GPU index for NVML: {gpu_idx})")
     print("-" * 60)
 
     # ------------------------------------------------------------------ CLIP
-    force_cleanup()
+    gpu_cooldown(device=device)
     print("Benchmarking: CLIP Baseline")
     try:
         config = load_config_from_yaml("configs/clip_baseline.yaml")
@@ -331,11 +289,11 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
         dummy = get_deterministic_input(BATCH_SIZE, device)
         vis_func = lambda: model.encode_image(dummy)
 
-        stats, _  = measure_latency_stats(vis_func, device=device)
-        mem       = measure_peak_memory(vis_func, device)
-        pwr       = measure_power_and_energy(vis_func, gpu_idx, device=device)
-        safety    = compute_safety_margin(stats)
-        deploy    = compute_deployability(pwr["energy_J"])
+        stats, _ = measure_latency_stats(vis_func, device=device)
+        mem      = measure_peak_memory(vis_func, device)
+        pwr      = measure_power_and_energy(vis_func, gpu_idx, device=device)
+        safety   = compute_safety_margin(stats)
+        deploy   = compute_deployability(pwr["energy_J"])
 
         results["CLIP"] = {
             "latency": stats,
@@ -353,7 +311,7 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
         print(f"  x CLIP Failed: {e}")
 
     # ------------------------------------------------------------------ LoRA
-    force_cleanup()
+    gpu_cooldown(device=device)
     print("\nBenchmarking: LoRA")
     try:
         config = load_config_from_yaml("configs/clip_lora.yaml")
@@ -364,18 +322,18 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
             model.model = PeftModel.from_pretrained(
                 model.model.get_base_model(),
                 CHECKPOINT_PATHS["LORA_ADAPTER"],
-                is_trainable=True
+                is_trainable=False
             )
 
         model = strict_fp16_setup(model, device)
         dummy = get_deterministic_input(BATCH_SIZE, device)
-        vis_func = lambda: model.encode_image(dummy)
 
         # Unmerged
         print("  -> Measuring Unmerged...")
-        stats_un, _ = measure_latency_stats(vis_func, device=device)
-        mem_un      = measure_peak_memory(vis_func, device)
-        pwr_un      = measure_power_and_energy(vis_func, gpu_idx, device=device)
+        vis_func_unmerged = lambda: model.encode_image(dummy)
+        stats_un, _ = measure_latency_stats(vis_func_unmerged, device=device)
+        mem_un      = measure_peak_memory(vis_func_unmerged, device)
+        pwr_un      = measure_power_and_energy(vis_func_unmerged, gpu_idx, device=device)
         safety_un   = compute_safety_margin(stats_un)
         deploy_un   = compute_deployability(pwr_un["energy_J"])
 
@@ -384,10 +342,13 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
         if hasattr(model.model, 'merge_and_unload'):
             model.model = model.model.merge_and_unload()
 
+        vis_func_merged = lambda: model.encode_image(dummy)
+
+        gpu_cooldown(device=device)
         print("  -> Measuring Merged...")
-        stats_mg, _ = measure_latency_stats(vis_func, device=device)
-        mem_mg      = measure_peak_memory(vis_func, device)
-        pwr_mg      = measure_power_and_energy(vis_func, gpu_idx, device=device)
+        stats_mg, _ = measure_latency_stats(vis_func_merged, device=device)
+        mem_mg      = measure_peak_memory(vis_func_merged, device)
+        pwr_mg      = measure_power_and_energy(vis_func_merged, gpu_idx, device=device)
         safety_mg   = compute_safety_margin(stats_mg)
         deploy_mg   = compute_deployability(pwr_mg["energy_J"])
 
@@ -408,7 +369,7 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
         print(f"  x LoRA Failed: {e}")
 
     # ---------------------------------------------------------------- Frozen
-    force_cleanup()
+    gpu_cooldown(device=device)
     print("\nBenchmarking: Frozen")
     try:
         config = load_config_from_yaml("configs/frozen_clip.yaml")
@@ -416,7 +377,7 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
         model = get_model("frozen", config)
 
         if os.path.exists(CHECKPOINT_PATHS["FROZEN"]):
-            ckpt = torch.load(CHECKPOINT_PATHS["FROZEN"], map_location='cpu')
+            ckpt = torch.load(CHECKPOINT_PATHS["FROZEN"], map_location='cpu', weights_only=False)
             state_dict = ckpt.get('model_state', ckpt)
             new_sd = {
                 k.replace('vision_encoder.', ''): v
@@ -428,20 +389,31 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
         model = strict_fp16_setup(model, device)
         dummy = get_deterministic_input(BATCH_SIZE, device)
 
-        # Vision-only (LLM offloaded)
+        # Vision-only (LLM offloaded to CPU)
         print("  -> Offloading LLM to CPU for strict vision measurement...")
         model.language_model.to("cpu")
+        torch.cuda.synchronize()
         force_cleanup()
 
-        vis_func    = lambda: model.encode_image(dummy)
-        mem_vis     = measure_peak_memory(vis_func, device)
-        stats_vis, _ = measure_latency_stats(vis_func, device=device)
-        pwr_vis     = measure_power_and_energy(vis_func, gpu_idx, device=device)
-        safety_vis  = compute_safety_margin(stats_vis)
-        deploy_vis  = compute_deployability(pwr_vis["energy_J"])
+        for param in model.language_model.parameters():
+            if param.data.device.type == 'cpu':
+                param.data = param.data.pin_memory()
 
-        # E2E generation (LLM back on GPU)
+        torch.cuda.synchronize()
+        force_cleanup()
+
+        vis_func = lambda: model.encode_image(dummy)
+
+        mem_vis      = measure_peak_memory(vis_func, device)
+        stats_vis, _ = measure_latency_stats(vis_func, device=device)
+        pwr_vis      = measure_power_and_energy(vis_func, gpu_idx, device=device)
+        safety_vis   = compute_safety_margin(stats_vis)
+        deploy_vis   = compute_deployability(pwr_vis["energy_J"])
+
+        # E2E generation: reload LLM to GPU
         print("  -> Reloading LLM to GPU for E2E generation...")
+        for param in model.language_model.parameters():
+            param.data = param.data.contiguous()
         model.language_model.to(device)
         force_cleanup()
 
@@ -450,20 +422,19 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
                 model.generate(dummy, model.tokenizer,
                                max_length=10, temperature=1.0, top_k=50)
 
-        # Generation is slow (500ms–2s per call on GPT-2 Large).
-        # 50 runs is statistically sufficient for p99 on a slow function —
-        # with 50 samples, p99 = average of the worst sample, which is stable
-        # enough given the low variance of autoregressive generation latency.
-        # 300 runs here would take 5–10 minutes per benchmark pass.
-        print("  -> Measuring E2E generation (50 runs, please wait ~1-2 min)...")
-        stats_e2e, _ = measure_latency_stats(gen_func, runs=50, warmup=5, device=device, label="E2E-gen")
+        print(f"  -> Measuring E2E generation ({LATENCY_RUNS_E2E} runs, ~60 min)...")
+        stats_e2e, _ = measure_latency_stats(gen_func, runs=LATENCY_RUNS_E2E,
+                                              warmup=15, device=device, label="E2E-gen")
         print(f"     Latency done: mean={stats_e2e['mean_ms']:.0f}ms, p99={stats_e2e['p99_ms']:.0f}ms")
+
         print("  -> Measuring E2E peak memory...")
-        mem_e2e      = measure_peak_memory(gen_func, device)
+        mem_e2e = measure_peak_memory(gen_func, device)
+
         print("  -> Measuring E2E power (20 runs)...")
-        pwr_e2e      = measure_power_and_energy(gen_func, gpu_idx, runs=20, warmup=2, device=device)
-        safety_e2e   = compute_safety_margin(stats_e2e)
-        deploy_e2e   = compute_deployability(pwr_e2e["energy_J"])
+        pwr_e2e = measure_power_and_energy(gen_func, gpu_idx, runs=20, warmup=2, device=device)
+
+        safety_e2e = compute_safety_margin(stats_e2e)
+        deploy_e2e = compute_deployability(pwr_e2e["energy_J"])
 
         results["Frozen"] = {
             "vision": {
@@ -483,17 +454,19 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
 
     # ------------------------------------------------------------------ SAVE
     results["_meta"] = {
-        "determinism_warnings": _determinism_warnings,
-        "seed": 42,
-        "batch_size": BATCH_SIZE,
-        "latency_runs": 300,
-        "latency_warmup_runs": 30,
+        "determinism_warnings":       _determinism_warnings,
+        "seed":                       42,
+        "batch_size":                 BATCH_SIZE,
+        "latency_runs_fast":          LATENCY_RUNS_FAST,
+        "e2e_generation_runs":        LATENCY_RUNS_E2E,
+        "latency_warmup_runs":        LATENCY_WARMUP_RUNS,
+        "e2e_warmup_runs":            15,
         "power_sampling_interval_ms": 1.0,
-        "os_jitter_ms": OS_JITTER_MS,
-        "delay_buffer_ms": DELAY_BUFFER_MS,
-        "wearable_battery_mAh": WEARABLE_BATTERY_MAH,
-        "wearable_battery_V": WEARABLE_BATTERY_V,
-        "target_inference_rate_Hz": INFERENCE_RATE_HZ,
+        "os_jitter_ms":               OS_JITTER_MS,
+        "delay_buffer_ms":            DELAY_BUFFER_MS,
+        "wearable_battery_mAh":       WEARABLE_BATTERY_MAH,
+        "wearable_battery_V":         WEARABLE_BATTERY_V,
+        "target_inference_rate_Hz":   INFERENCE_RATE_HZ,
     }
 
     try:
@@ -508,22 +481,24 @@ def run_benchmark(device='cuda', output_file='benchmark/results/benchmark_result
 
     return results
 
-
 # ============================================================
-#  MAIN: run 3 times, save as delay_aware_results_{1,2,3}.json
+#  MAIN: run 3 times
 # ============================================================
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--device',      default='cuda')
-    parser.add_argument('--output_dir',  default='benchmark/results')
+    parser.add_argument('--device',     default='cuda')
+    parser.add_argument('--output_dir', default='benchmark/benchmar_results')
     args = parser.parse_args()
 
     for i in range(1, 4):
         print(f"\n{'='*60}")
         print(f"  BENCHMARK RUN {i}/3")
         print(f"{'='*60}")
-        set_seed(42)   # re-seed before every run for reproducibility
-        output_file = f"{args.output_dir}/delay_aware_results_update_2_{i}.json"
+        if i > 1:
+            print("  [inter-run cooldown] 180s warm-hold between runs...")
+            gpu_cooldown(seconds=180, device=args.device) # FIX: uses correct cooldown
+        
+        output_file = f"{args.output_dir}/delay_aware_deployability_results_{i}.json"
         run_benchmark(device=args.device, output_file=output_file)
 
     print("\n[DONE] All 3 runs complete.")

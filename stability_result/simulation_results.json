@@ -9,76 +9,129 @@
     },
     "sil_simulation": {
         "10ms": {
-            "IAE": 0.3572,
-            "OS_pct": 6.72,
-            "ISE": 0.0715,
-            "Ts_s": 2.609,
+            "IAE": 0.3576,
+            "OS_pct": 6.66,
+            "ISE": 0.0744,
+            "Ts_s": 2.597,
             "stable": true
         },
         "15ms": {
-            "IAE": 0.3596,
-            "OS_pct": 15.27,
-            "ISE": 0.0739,
-            "Ts_s": 2.599,
+            "IAE": 0.36,
+            "OS_pct": 15.15,
+            "ISE": 0.0767,
+            "Ts_s": 2.587,
             "stable": true
         },
         "20ms": {
-            "IAE": 0.3646,
-            "OS_pct": 24.78,
-            "ISE": 0.081,
-            "Ts_s": 2.59,
+            "IAE": 0.365,
+            "OS_pct": 24.62,
+            "ISE": 0.0837,
+            "Ts_s": 2.578,
             "stable": true
         },
         "30ms": {
-            "IAE": 0.4979,
-            "OS_pct": 45.16,
-            "ISE": 0.1817,
-            "Ts_s": 1.63,
+            "IAE": 0.4982,
+            "OS_pct": 44.96,
+            "ISE": 0.1832,
+            "Ts_s": 1.634,
             "stable": true
         },
         "40ms": {
-            "IAE": 17.1235,
-            "OS_pct": 3055.89,
-            "ISE": 238.7566,
+            "IAE": 16.905,
+            "OS_pct": 3041.44,
+            "ISE": 231.6658,
             "Ts_s": "N/A",
             "stable": false
         },
         "50ms": {
-            "IAE": 124.7931,
-            "OS_pct": 13988.18,
-            "ISE": 11700.8758,
+            "IAE": 124.121,
+            "OS_pct": 13988.17,
+            "ISE": 11610.4394,
             "Ts_s": "N/A",
             "stable": false
         }
     },
     "worst_case_latency": {
         "CLIP Baseline": {
-            "p99_ms": 16.12,
-            "wcl_ms": 19.12,
-            "ratio_percent": 50.6,
-            "margin_ms": 18.65,
+            "p99_ms": 14.82,
+            "wcl_ms": 17.82,
+            "ratio_percent": 47.2,
+            "margin_ms": 19.95240498360276,
             "safe": true
         },
         "LoRA-CLIP (merged)": {
-            "p99_ms": 15.49,
-            "wcl_ms": 18.49,
-            "ratio_percent": 49.0,
-            "margin_ms": 19.28,
+            "p99_ms": 14.92,
+            "wcl_ms": 17.92,
+            "ratio_percent": 47.4,
+            "margin_ms": 19.85240498360276,
             "safe": true
         },
         "LoRA-CLIP (unmerged)": {
-            "p99_ms": 25.57,
-            "wcl_ms": 28.57,
-            "ratio_percent": 75.6,
-            "margin_ms": 9.2,
+            "p99_ms": 24.01,
+            "wcl_ms": 27.01,
+            "ratio_percent": 71.5,
+            "margin_ms": 10.76240498360276,
             "safe": true
         },
         "Frozen Prefix-LM (E2E)": {
-            "p99_ms": 418.21,
-            "wcl_ms": 421.21,
-            "ratio_percent": 1115.1,
-            "margin_ms": -383.44,
+            "p99_ms": 439.02,
+            "wcl_ms": 442.02,
+            "ratio_percent": 1170.2,
+            "margin_ms": -404.2475950163972,
             "safe": false
+        }
+    },
+    "parametric_sweep": {
+        "min_tau_max_ms": 18.76,
+        "min_tau_at_M_kg": 0.6,
+        "min_tau_at_K_Npm": 213.18,
+        "WCL_target_ms": 17.92,
+        "safety_margin_ms": 0.84
+    },
+    "noise_sweep_wcl_17.92ms": {
+        "clean_IAE": 0.3622,
+        "N_seeds": 20,
+        "stability_iae_threshold": 1.0866,
+        "note": "Noise injected independently into both observation (delayed feedback) and reference (vision-derived target) channels. Independent N(0,sigma) draws on both channels produce effective error noise of sigma*sqrt(2). Sigma range is bracketed by LoRA-CLIP empirical latency std (~6.4% of mean). Plotted time-domain trajectories are mean-representative seeds (closest IAE to mean across N_seeds). Bar chart shows full mean +/- std statistics.",
+        "sigma_1pct": {
+            "nominal_sigma": 0.01,
+            "effective_sigma": 0.0141,
+            "mean_IAE": 0.3612,
+            "std_IAE": 0.0023,
+            "max_IAE": 0.365,
+            "degradation_pct": -0.3,
+            "status": "BOUNDED",
+            "bounded": true
+        },
+        "sigma_2pct": {
+            "nominal_sigma": 0.02,
+            "effective_sigma": 0.0283,
+            "mean_IAE": 0.3606,
+            "std_IAE": 0.0047,
+            "max_IAE": 0.368,
+            "degradation_pct": -0.5,
+            "status": "BOUNDED",
+            "bounded": true
+        },
+        "sigma_5pct": {
+            "nominal_sigma": 0.05,
+            "effective_sigma": 0.0707,
+            "mean_IAE": 0.3773,
+            "std_IAE": 0.0121,
+            "max_IAE": 0.393,
+            "degradation_pct": 4.2,
+            "status": "BOUNDED",
+            "bounded": true
+        },
+        "sigma_10pct": {
+            "nominal_sigma": 0.1,
+            "effective_sigma": 0.1414,
+            "mean_IAE": 0.4565,
+            "std_IAE": 0.0235,
+            "max_IAE": 0.5053,
+            "degradation_pct": 26.0,
+            "status": "BOUNDED",
+            "bounded": true
         }
     }
 }

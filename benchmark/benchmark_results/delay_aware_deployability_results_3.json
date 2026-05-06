@@ -1,0 +1,216 @@
+{
+    "CLIP": {
+        "latency": {
+            "mean_ms": 14.258491899818182,
+            "std_ms": 0.25391573522429256,
+            "min_ms": 13.839783146977425,
+            "max_ms": 18.031151965260506,
+            "p50_ms": 14.228054322302341,
+            "p95_ms": 14.57014661282301,
+            "p99_ms": 14.83363414183259
+        },
+        "memory_MB": 341.2373046875,
+        "power_energy": {
+            "power_W": 78.57422881355929,
+            "energy_J": 1.126284359468908,
+            "energy_mJ": 1126.284359468908,
+            "temp_min_C": 50,
+            "temp_max_C": 50
+        },
+        "safety_margin": {
+            "p99_ms": 14.83363414183259,
+            "os_jitter_ms": 1.0,
+            "delay_buffer_ms": 2.0,
+            "worst_case_latency_ms": 17.83363414183259,
+            "inference_budget_ms": 100.0,
+            "satisfies_rt_constraint": true,
+            "satisfies_stability_bound": true,
+            "stability_margin_ms": 19.94
+        },
+        "deployability": {
+            "battery_capacity_J": 39960.0,
+            "battery_mAh": 3000,
+            "battery_V": 3.7,
+            "energy_per_inference_J": 1.126284359468908,
+            "inference_rate_Hz": 10,
+            "inferences_per_charge": 35479.49473332194,
+            "runtime_at_target_hz_hr": 0.9855415203700539,
+            "runtime_at_target_hz_min": 59.132491222203235
+        }
+    },
+    "LoRA": {
+        "unmerged": {
+            "latency": {
+                "mean_ms": 22.77891954034567,
+                "std_ms": 0.30760184945413255,
+                "min_ms": 22.210700437426567,
+                "max_ms": 25.184359401464462,
+                "p50_ms": 22.735530510544777,
+                "p95_ms": 23.27867718413472,
+                "p99_ms": 23.968749847263098
+            },
+            "memory_MB": 343.1123046875,
+            "power_energy": {
+                "power_W": 77.2371968810916,
+                "energy_J": 1.7842885918831433,
+                "energy_mJ": 1784.2885918831432,
+                "temp_min_C": 53,
+                "temp_max_C": 53
+            },
+            "safety_margin": {
+                "p99_ms": 23.968749847263098,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 26.968749847263098,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": true,
+                "satisfies_stability_bound": true,
+                "stability_margin_ms": 10.8
+            },
+            "deployability": {
+                "battery_capacity_J": 39960.0,
+                "battery_mAh": 3000,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 1.7842885918831433,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 22395.4802949371,
+                "runtime_at_target_hz_hr": 0.6220966748593639,
+                "runtime_at_target_hz_min": 37.325800491561836
+            }
+        },
+        "merged": {
+            "latency": {
+                "mean_ms": 14.26533766463399,
+                "std_ms": 0.166757658922667,
+                "min_ms": 13.879470527172089,
+                "max_ms": 15.937909483909607,
+                "p50_ms": 14.252698048949242,
+                "p95_ms": 14.535275660455227,
+                "p99_ms": 14.713385049253702
+            },
+            "memory_MB": 341.2373046875,
+            "power_energy": {
+                "power_W": 79.96343255813953,
+                "energy_J": 1.1390718892002651,
+                "energy_mJ": 1139.071889200265,
+                "temp_min_C": 53,
+                "temp_max_C": 53
+            },
+            "safety_margin": {
+                "p99_ms": 14.713385049253702,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 17.713385049253702,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": true,
+                "satisfies_stability_bound": true,
+                "stability_margin_ms": 20.06
+            },
+            "deployability": {
+                "battery_capacity_J": 39960.0,
+                "battery_mAh": 3000,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 1.1390718892002651,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 35081.192310044324,
+                "runtime_at_target_hz_hr": 0.9744775641678979,
+                "runtime_at_target_hz_min": 58.46865385007387
+            }
+        }
+    },
+    "Frozen": {
+        "vision": {
+            "latency": {
+                "mean_ms": 8.243129838258028,
+                "std_ms": 0.14552243969386955,
+                "min_ms": 7.985727861523628,
+                "max_ms": 11.211840435862541,
+                "p50_ms": 8.226139470934868,
+                "p95_ms": 8.42623757198453,
+                "p99_ms": 8.582317791879177
+            },
+            "memory_MB": 94.16650390625,
+            "power_energy": {
+                "power_W": 86.23284112149533,
+                "energy_J": 0.7161381370105938,
+                "energy_mJ": 716.1381370105938,
+                "temp_min_C": 53,
+                "temp_max_C": 53
+            },
+            "safety_margin": {
+                "p99_ms": 8.582317791879177,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 11.582317791879177,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": true,
+                "satisfies_stability_bound": true,
+                "stability_margin_ms": 26.19
+            },
+            "deployability": {
+                "battery_capacity_J": 39960.0,
+                "battery_mAh": 3000,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 0.7161381370105938,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 55799.29057654539,
+                "runtime_at_target_hz_hr": 1.5499802937929275,
+                "runtime_at_target_hz_min": 92.99881762757565
+            }
+        },
+        "e2e": {
+            "latency": {
+                "mean_ms": 430.02135187387466,
+                "std_ms": 2.9613029670858984,
+                "min_ms": 424.50990341603756,
+                "max_ms": 438.6871363967657,
+                "p50_ms": 429.8704080283642,
+                "p95_ms": 435.6319548562169,
+                "p99_ms": 437.3036536388099
+            },
+            "memory_MB": 1609.29638671875,
+            "power_energy": {
+                "power_W": 85.9950955921402,
+                "energy_J": 37.46520019244413,
+                "energy_mJ": 37465.20019244413,
+                "temp_min_C": 59,
+                "temp_max_C": 60
+            },
+            "safety_margin": {
+                "p99_ms": 437.3036536388099,
+                "os_jitter_ms": 1.0,
+                "delay_buffer_ms": 2.0,
+                "worst_case_latency_ms": 440.3036536388099,
+                "inference_budget_ms": 100.0,
+                "satisfies_rt_constraint": false,
+                "satisfies_stability_bound": false,
+                "stability_margin_ms": -402.53
+            },
+            "deployability": {
+                "battery_capacity_J": 39960.0,
+                "battery_mAh": 3000,
+                "battery_V": 3.7,
+                "energy_per_inference_J": 37.46520019244413,
+                "inference_rate_Hz": 10,
+                "inferences_per_charge": 1066.5897898514104,
+                "runtime_at_target_hz_hr": 0.029627494162539177,
+                "runtime_at_target_hz_min": 1.7776496497523506
+            }
+        }
+    },
+    "_meta": {
+        "determinism_warnings": [],
+        "seed": 42,
+        "batch_size": 1,
+        "latency_runs_fast": 1000,
+        "e2e_generation_runs": 150,
+        "latency_warmup_runs": 300,
+        "e2e_warmup_runs": 15,
+        "power_sampling_interval_ms": 1.0,
+        "os_jitter_ms": 1.0,
+        "delay_buffer_ms": 2.0,
+        "wearable_battery_mAh": 3000,
+        "wearable_battery_V": 3.7,
+        "target_inference_rate_Hz": 10
+    }
+}
