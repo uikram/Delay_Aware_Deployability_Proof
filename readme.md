@@ -93,7 +93,7 @@ Option B: Using the Dedicated Script (Detailed Reporting) This script generates 
 
 Bash
 
-python benchmark/run_benchmark.py --device cuda
+python benchmark/run_benchmarking.py --device cuda
 Features:
 
 Compares Merged vs. Unmerged LoRA adapters.
@@ -107,7 +107,7 @@ CLIP Baseline: Standard implementation using Hugging Face's CLIPModel.
 
 CLIP + LoRA: Applies Low-Rank Adaptation to specific projection layers (q_proj, v_proj) of the CLIP model, allowing for efficient fine-tuning.
 
-Frozen: A composite model typically using a frozen Vision Encoder (e.g., ResNet50) and a Large Language Model (e.g., GPT-2), focusing on captioning or generative tasks.
+Frozen: A composite model that couples a trainable Vision Encoder (e.g., ResNet-50) with a frozen Large Language Model (e.g., GPT-2 Large), preserving pre-trained reasoning capabilities while enabling multimodal conditioning.
 
 📊 Datasets
 Training: The framework is configured to use the Conceptual Captions dataset. Ensure your data is organized as JSONL files (see configs/clip_lora.yaml for expected paths).
